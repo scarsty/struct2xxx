@@ -20,5 +20,5 @@ public:
     };
     std::vector<Record> records;
 
-    void Parse(const std::string& content);
+    void parse(const std::string& content);
 };

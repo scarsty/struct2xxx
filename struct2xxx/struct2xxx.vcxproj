@@ -24,6 +24,7 @@
     <ProjectGuid>{daf2e894-ee95-4323-aabb-c131da258727}</ProjectGuid>
     <RootNamespace>struct2xxx</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>rearrange_cpp</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -101,10 +102,11 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../mlcc</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,10 +130,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Cppfa.h" />
     <ClInclude Include="Struct2xxx.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\mlcc\filefunc.cpp" />
+    <ClCompile Include="..\..\mlcc\strfunc.cpp" />
+    <ClCompile Include="Cppfa.cpp" />
     <ClCompile Include="Struct2xxx.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>
