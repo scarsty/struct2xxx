@@ -479,7 +479,7 @@ std::list<CalUnit> Cppfa::split(std::string& str)
         //括号前的变量视为函数
         if (it->str == "(")
         {
-            if (it != rv.begin() && std::prev(it)->type == CalUnitType::Parameter && functions.count(std::prev(it)->str) > 0)
+            if (it != rv.begin() && std::prev(it)->type == CalUnitType::Parameter)
             {
                 std::prev(it)->type = CalUnitType::Function;
             }
@@ -1108,7 +1108,7 @@ void Cppfa::check_cal_unit(CalUnit& c, CalUnit* father)
     }
 }
 
-void Cppfa::analyze(std::string str)
+CalUnit Cppfa::analyze(std::string str)
 {
     errors.clear();
     force_return = false;
@@ -1121,6 +1121,7 @@ void Cppfa::analyze(std::string str)
     {
         check_cal_unit(c, nullptr);
     }
+    return c;
 }
 
 Object Cppfa::run_script(std::string str)

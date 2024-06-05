@@ -72,6 +72,8 @@ struct CalUnit
     }
 };
 
+//struct Cppfa;
+
 template <typename T>
 bool vector_have(const std::vector<T>& ops, const T& op)
 {
@@ -115,6 +117,7 @@ private:
     std::map<std::string, Object> parameters;
     using func_type = std::function<Object(ObjectVector&)>;
     std::map<std::string, func_type> functions;
+    std::map<std::string, int> classes;
 
     bool force_return = false;
     Object result;
@@ -182,7 +185,7 @@ public:
 
     void check_cal_unit(CalUnit& c, CalUnit* father);
 
-    void analyze(std::string str);
+    CalUnit analyze(std::string str);
     Object run_script(std::string str);
 
     template <typename... Args>
