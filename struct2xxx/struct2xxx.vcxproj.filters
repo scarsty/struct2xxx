@@ -18,24 +18,18 @@
     <ClInclude Include="Struct2xxx.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Cppfa.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Struct2xxx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="test.cpp">
+    <ClCompile Include="rearrange_cpp.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\..\mlcc\filefunc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\..\mlcc\strfunc.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Cppfa.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
