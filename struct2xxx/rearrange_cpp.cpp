@@ -1,4 +1,4 @@
-#include "Struct2xxx.h"
+ï»¿#include "Struct2xxx.h"
 #include "filefunc.h"
 #include "strfunc.h"
 #include <Windows.h>
@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+//#include "nlohmann/json.hpp"
 
 struct FuncInfo
 {
@@ -25,6 +26,7 @@ struct FuncBody
     std::string name;
     std::string body;
     int line0, line1;
+    int index = 0;
 };
 
 struct ClassInfo
@@ -32,6 +34,7 @@ struct ClassInfo
     std::string name;
     size_t pos = 0;
     int64_t id;
+    int is_class = 0;
 };
 
 std::vector<FuncInfo> funcInfos;
@@ -59,23 +62,36 @@ int main(int argc, char* argv[])
 
     std::string cmd = "copy " + filename_cpp + " temp.cpp";
     system(cmd.c_str());
-    cmd = "clang -cc1 -ast-dump temp.cpp > temp.ast";
-
+    cmd = "clang -cc1 -ast-dump=json temp.cpp > temp.ast";
     system(cmd.c_str());
-
     Sleep(1000);
     //std::string text = buffer.str();
+    //nlohmann::json j;
+    //j = nlohmann::json::parse(strfunc::readStringFromFile("temp.ast"));
     std::string ast_content = strfunc::readStringFromFile("temp.ast");
     cmd = "del temp.cpp temp.ast";
-    //system(cmd.c_str());
+    system(cmd.c_str());
     auto lines_ast = strfunc::splitString(ast_content, "\n", false);
     int index = 0;
     std::vector<ClassInfo> current_record;
     //current_record.push_back({});
     //pos_class = std::string::npos;
+    int i_line = 0;
     for (auto l : lines_ast)
     {
+        i_line++;
+        if (i_line == 807)
+        {
+            int a = 0;
+        }
         auto ps = strfunc::splitString(l, " ");
+        if (current_record.size() != 0)
+        {
+            if (l.rfind("|-") <= current_record.back().pos)
+            {
+                current_record.resize(l.rfind("|-") / 2);
+            }
+        }
         auto pos_class0 = l.find("CXXRecordDecl");
         if (pos_class0 != std::string::npos)
         {
@@ -91,9 +107,10 @@ int main(int argc, char* argv[])
                     if (p.find("0x") == 0)
                     {
                         id = std::stoll(p.substr(2), nullptr, 16);
+                        break;
                     }
                 }
-                current_record.push_back({ name, pos_class0, id });
+                current_record.push_back({ name, pos_class0, id, 1 });
                 ClassInfoIndex[id] = current_record.back();
             }
         }
@@ -107,24 +124,16 @@ int main(int argc, char* argv[])
                 if (p.find("0x") == 0)
                 {
                     id = std::stoll(p.substr(2), nullptr, 16);
+                    break;
                 }
             }
-            current_record.push_back({ name, pos_class0, id });
+            current_record.push_back({ name, pos_class0, id, 0 });
             ClassInfoIndex[id] = current_record.back();
         }
-
-        if (current_record.size() != 0)
-        {
-            if (l.find("`", current_record.back().pos) == current_record.back().pos)
-            {
-                current_record.pop_back();
-            }
-        }
-
         if (l.find("CXXMethodDecl") != std::string::npos
             || l.find("CXXConstructorDecl") != std::string::npos
             || l.find("CXXDestructorDecl") != std::string::npos
-            || l.find("FunctionDecl")!=std::string::npos)
+            || l.find("FunctionDecl") != std::string::npos)
         {
             if (l.find("parent") != std::string::npos)
             {
@@ -146,13 +155,15 @@ int main(int argc, char* argv[])
             auto pos_c3 = l.find("'", pos_p + 1);
             auto name = l.substr(pos_c1 + 1, pos_c3 - pos_c1);
             //std::println("{}", name);
-            if (current_record.size() != 0)
+            std::string prefix = "";
+            for (auto& c: current_record)
             {
-                name = current_record.back().name + "::" + name;
+                prefix += "::" + c.name;
             }
-            if (class_name != "")    //ÀàÃû·ÇÊ×´Î³öÏÖ£¬ÊÇÒ»¸öÊµÏÖ
+            prefix += "::";
+            if (class_name != "")    //ç±»åéžé¦–æ¬¡å‡ºçŽ°ï¼Œæ˜¯ä¸€ä¸ªå®žçŽ°
             {
-                name = class_name + "::" + name;
+                name = prefix + class_name + "::" + name;
                 int line0 = 0, line1 = 0;
                 for (auto p : ps)
                 {
@@ -169,25 +180,30 @@ int main(int argc, char* argv[])
                 fb.name = name;
                 fb.line0 = line0;
                 fb.line1 = line1;
+                fb.index = funcInfoIndex[fb.name];
                 funcBodies.push_back(fb);
             }
-            if (!funcInfoIndex.count(name))    //È«ÃûÊ×´Î³öÏÖ£¬ÈÏÎªÊÇÒ»¸öÉùÃ÷
+            else
             {
-                FuncInfo fi;
-                fi.name = name;
-                funcInfos.push_back(fi);
-                funcInfoIndex[fi.name] = index++;
+                name = prefix + name;
+                if (!funcInfoIndex.contains(name))    //å…¨åé¦–æ¬¡å‡ºçŽ°ï¼Œè®¤ä¸ºæ˜¯ä¸€ä¸ªå£°æ˜Ž
+                {
+                    FuncInfo fi;
+                    fi.name = name;
+                    funcInfos.push_back(fi);
+                    funcInfoIndex[fi.name] = index++;
+                }
             }
         }
     }
 
-    std::print("Found functions:\n");
-    for (auto& fi : funcInfos)
+    std::print("Found function bodies:\n");
+    for (auto& fb : funcBodies)
     {
-        std::print("  {}\n", fi.name);
+        std::print("  {} : {}\n", fb.name, fb.index);
     }
 
-    //´¦Àí»»ÐÐ·û
+    //å¤„ç†æ¢è¡Œç¬¦
     std::string line_break = "\n";
     if (cpp_content.find("\r\n") != std::string::npos)
     {
@@ -206,6 +222,7 @@ int main(int argc, char* argv[])
     }
     std::string head;
     FuncBody fb_head, fb_tail;
+    //å‰é¢çš„è¡Œè®¤ä¸ºæ˜¯å¤´
     for (int i = 0; i < lines_cpp.size(); i++)
     {
         if (lines_below[i] == nullptr)
@@ -218,6 +235,7 @@ int main(int argc, char* argv[])
             break;
         }
     }
+    //ä¸­é—´çš„è¡Œå½’å±žå…¶åŽçš„ï¼ŒåŽé¢å½’ä¸ºå°¾
     FuncBody* last = &fb_tail;
     for (int i = lines_cpp.size() - 1; i != 0; i--)
     {
@@ -238,15 +256,15 @@ int main(int argc, char* argv[])
     {
         fb_tail.body.pop_back();
     }
-    //ÅÅÐò
+    //æŽ’åº
     if (funcBodies.size() > 1)
     {
         std::sort(funcBodies.begin(), funcBodies.end(), [&](const FuncBody& a, const FuncBody& b)
             {
-                return funcInfoIndex[a.name] < funcInfoIndex[b.name];
+                return a.index < b.index;
             });
     }
-    //Éú³ÉÐÂµÄcppÎÄ¼þ
+    //ç”Ÿæˆæ–°çš„cppæ–‡ä»¶
     new_cpp_content.clear();
     new_cpp_content += fb_head.body;
     for (auto& fb : funcBodies)
@@ -267,6 +285,6 @@ int main(int argc, char* argv[])
     {
         std::print("No change\n");
     }
-
+    std::print("End\n");
     return 0;
 }
