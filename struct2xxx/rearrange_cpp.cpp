@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 
     std::string cmd = "copy " + filename_cpp + " temp.cpp";
     system(cmd.c_str());
-    cmd = "clang -cc1 -ast-dump=json temp.cpp > temp.ast";
+    cmd = "clang -cc1 -ast-dump temp.cpp > temp.ast";
     system(cmd.c_str());
     Sleep(1000);
     //std::string text = buffer.str();
