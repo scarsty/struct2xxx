@@ -8,39 +8,10 @@
 #include <map>
 #include <print>
 #include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
 #include <vector>
-
-struct FuncInfo
-{
-    std::string name;
-    std::string type;
-    std::string args;
-    std::string ret;
-    std::string body;
-    int64_t index = 0;
-};
-
-struct FuncBody
-{
-    std::string name;
-    std::string body;
-    int line0, line1;
-    int index = 0;
-};
-
-struct ClassInfo
-{
-    std::string name;
-    size_t pos = 0;
-    int64_t id;
-    int is_class = 0;
-};
-
-std::vector<FuncInfo> funcInfos;
-std::vector<FuncBody> funcBodies;
-std::map<std::string, int> funcInfoIndex;
-std::map<int64_t, ClassInfo> ClassInfoIndex;
 
 int main(int argc, char* argv[])
 {
@@ -60,138 +31,8 @@ int main(int argc, char* argv[])
 
     std::print("Processing {} and {}\n", filename_h, filename_cpp);
 
-    std::string cmd = "copy " + filename_cpp + " temp.cpp";
-    system(cmd.c_str());
-    cmd = "clang -cc1 -ast-dump temp.cpp > temp.ast";
-    system(cmd.c_str());
-    Sleep(1000);
-    std::string ast_content = strfunc::readStringFromFile("temp.ast");
-    cmd = "del temp.cpp temp.ast";
-    system(cmd.c_str());
-    auto lines_ast = strfunc::splitString(ast_content, "\n", false);
-    int index = 0;
-    std::vector<ClassInfo> current_record;
-    int i_line = 0;
-    for (auto l : lines_ast)
-    {
-        i_line++;
-        if (i_line == 807)
-        {
-            int a = 0;
-        }
-        auto ps = strfunc::splitString(l, " ");
-        if (current_record.size() != 0)
-        {
-            if (l.rfind("|-") <= current_record.back().pos)
-            {
-                current_record.resize(l.rfind("|-") / 2);
-            }
-        }
-        auto pos_class0 = l.find("CXXRecordDecl");
-        if (pos_class0 != std::string::npos)
-        {
-            auto pos_p = l.find("definition");
-            if (pos_p != std::string::npos)
-            {
-                auto pos_c2 = l.rfind(" ", pos_p);
-                auto pos_c1 = l.rfind(" ", pos_c2 - 1);
-                auto name = l.substr(pos_c1 + 1, pos_c2 - pos_c1 - 1);
-                int64_t id = 0;
-                for (auto p : ps)
-                {
-                    if (p.find("0x") == 0)
-                    {
-                        id = std::stoll(p.substr(2), nullptr, 16);
-                        break;
-                    }
-                }
-                current_record.push_back({ name, pos_class0, id, 1 });
-                ClassInfoIndex[id] = current_record.back();
-            }
-        }
-        pos_class0 = l.find("NamespaceDecl");
-        if (pos_class0 != std::string::npos)
-        {
-            auto name = ps.back();
-            int64_t id = 0;
-            for (auto p : ps)
-            {
-                if (p.find("0x") == 0)
-                {
-                    id = std::stoll(p.substr(2), nullptr, 16);
-                    break;
-                }
-            }
-            current_record.push_back({ name, pos_class0, id, 0 });
-            ClassInfoIndex[id] = current_record.back();
-        }
-        if (l.find("CXXMethodDecl") != std::string::npos
-            || l.find("CXXConstructorDecl") != std::string::npos
-            || l.find("CXXDestructorDecl") != std::string::npos
-            || l.find("FunctionDecl") != std::string::npos)
-        {
-            if (l.find("parent") != std::string::npos)
-            {
-                //continue;
-            }
-            std::string class_name;
-            for (int i = 0; i < ps.size(); i++)
-            {
-                if (ps[i] == "parent")
-                {
-                    auto id = std::stoll(ps[i + 1].substr(2), nullptr, 16);
-                    class_name = ClassInfoIndex[id].name;
-                }
-            }
-            //std::println("{}", l);
-            auto pos_p = l.find("'");
-            auto pos_c2 = l.rfind(" ", pos_p);
-            auto pos_c1 = l.rfind(" ", pos_c2 - 1);
-            auto pos_c3 = l.find("'", pos_p + 1);
-            auto name = l.substr(pos_c1 + 1, pos_c3 - pos_c1);
-            //std::println("{}", name);
-            std::string prefix = "";
-            for (auto& c : current_record)
-            {
-                prefix += "::" + c.name;
-            }
-            prefix += "::";
-            if (class_name != "")    //类名非首次出现，是一个实现
-            {
-                name = prefix + class_name + "::" + name;
-                int line0 = 0, line1 = 0;
-                for (auto p : ps)
-                {
-                    if (p.find("<") == 0 && p.find(":") != std::string::npos)
-                    {
-                        line0 = std::stoi(p.substr(p.find(":") + 1));
-                    }
-                    else if (p.find("line:") == 0 && p.find(">") != std::string::npos)
-                    {
-                        line1 = std::stoi(p.substr(5));
-                    }
-                }
-                FuncBody fb;
-                fb.name = name;
-                fb.line0 = line0;
-                fb.line1 = line1;
-                fb.index = funcInfoIndex[fb.name];
-                funcBodies.push_back(fb);
-            }
-            else
-            {
-                name = prefix + name;
-                if (!funcInfoIndex.contains(name))    //全名首次出现，认为是一个声明
-                {
-                    FuncInfo fi;
-                    fi.name = name;
-                    funcInfos.push_back(fi);
-                    funcInfoIndex[fi.name] = index++;
-                }
-            }
-        }
-    }
-
+    //auto [funcInfos, funcBodies] = findFunctions(filename_cpp);
+    auto [funcInfos, funcBodies] = findFunctions2(filename_cpp);
     std::print("Found function bodies:\n");
     for (auto& fb : funcBodies)
     {
@@ -283,7 +124,8 @@ int main(int argc, char* argv[])
     std::print("End\n");
     return 0;
 }
-void json2cpp()
+
+void ast_json_111()
 {
     nlohmann::json j;
     //j = nlohmann::json::parse(strfunc::readStringFromFile("temp.ast"));
