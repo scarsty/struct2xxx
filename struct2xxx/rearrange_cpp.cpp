@@ -1,5 +1,6 @@
 ﻿#include "Struct2xxx.h"
 #include "filefunc.h"
+#include "nlohmann/json.hpp"
 #include "strfunc.h"
 #include <Windows.h>
 #include <algorithm>
@@ -9,7 +10,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-//#include "nlohmann/json.hpp"
 
 struct FuncInfo
 {
@@ -65,17 +65,12 @@ int main(int argc, char* argv[])
     cmd = "clang -cc1 -ast-dump temp.cpp > temp.ast";
     system(cmd.c_str());
     Sleep(1000);
-    //std::string text = buffer.str();
-    //nlohmann::json j;
-    //j = nlohmann::json::parse(strfunc::readStringFromFile("temp.ast"));
     std::string ast_content = strfunc::readStringFromFile("temp.ast");
     cmd = "del temp.cpp temp.ast";
     system(cmd.c_str());
     auto lines_ast = strfunc::splitString(ast_content, "\n", false);
     int index = 0;
     std::vector<ClassInfo> current_record;
-    //current_record.push_back({});
-    //pos_class = std::string::npos;
     int i_line = 0;
     for (auto l : lines_ast)
     {
@@ -156,7 +151,7 @@ int main(int argc, char* argv[])
             auto name = l.substr(pos_c1 + 1, pos_c3 - pos_c1);
             //std::println("{}", name);
             std::string prefix = "";
-            for (auto& c: current_record)
+            for (auto& c : current_record)
             {
                 prefix += "::" + c.name;
             }
@@ -277,8 +272,8 @@ int main(int argc, char* argv[])
     std::print("Found {} function bodies\n", funcBodies.size());
     if (new_cpp_content != cpp_content)
     {
-        CopyFileA(filename_cpp.c_str(), (filename + std::to_string(time(nullptr)) + ".cpp").c_str(), FALSE);
-        strfunc::writeStringToFile(new_cpp_content, filename_cpp);
+        //CopyFileA(filename_cpp.c_str(), (filename + std::to_string(time(nullptr)) + ".cpp").c_str(), FALSE);
+        //strfunc::writeStringToFile(new_cpp_content, filename_cpp);
         std::print("Change have saved\n");
     }
     else
@@ -287,4 +282,55 @@ int main(int argc, char* argv[])
     }
     std::print("End\n");
     return 0;
+}
+void json2cpp()
+{
+    nlohmann::json j;
+    //j = nlohmann::json::parse(strfunc::readStringFromFile("temp.ast"));
+    std::vector<ClassInfo> current_record;
+    std::function<void(nlohmann::json&)> get_funcs = [&get_funcs, &current_record](nlohmann::json& j)
+    {
+        bool has = false;
+        if (j["kind"].is_string())
+        {
+            auto kind = j["kind"].get<std::string>();
+            if (kind == "CXXMethodDecl"
+                || kind == "CXXConstructorDecl"
+                || kind == "CXXDestructorDecl"
+                || kind == "FunctionDecl")
+            {
+                std::string prefix = "";
+                for (auto& c : current_record)
+                {
+                    prefix += "::" + c.name;
+                }
+                prefix += "::";
+                std::print("{}{} {}\n", prefix, j["name"].get<std::string>(), j["type"]["qualType"].get<std::string>());
+            }
+            if (kind == "NamespaceDecl")
+            {
+                //std::print("{}\n", j["name"].get<std::string>());
+                current_record.push_back({ j["name"].get<std::string>(), 0, 0, 0 });
+                has = true;
+            }
+            if (kind == "CXXRecordDecl")
+            {
+                //std::print("{}\n", j["name"].get<std::string>());
+                current_record.push_back({ j["name"].get<std::string>(), 0, 0, 1 });
+                has = true;
+            }
+        }
+        if (j["inner"].is_array())
+        {
+            for (auto& j1 : j["inner"])
+            {
+                get_funcs(j1);
+            }
+        }
+        if (has && current_record.size() != 0)
+        {
+            current_record.pop_back();
+        }
+    };
+    get_funcs(j);
 }
