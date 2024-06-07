@@ -72,12 +72,12 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std
             current_record.push_back({ name, pos_class0, id, 0 });
             ClassInfoIndex[id] = current_record.back();
         }
-        if (l.find("CXXMethodDecl") != std::string::npos
-            || l.find("CXXConstructorDecl") != std::string::npos
-            || l.find("CXXDestructorDecl") != std::string::npos
-            || l.find("FunctionDecl") != std::string::npos)
+        if (l.contains("CXXMethodDecl")
+            || l.contains("CXXConstructorDecl")
+            || l.contains("CXXDestructorDecl")
+            || l.contains("FunctionDecl"))
         {
-            if (l.find("parent") != std::string::npos)
+            if (l.contains("parent"))
             {
                 //continue;
             }
@@ -109,11 +109,11 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std
                 int line0 = 0, line1 = 0;
                 for (auto p : ps)
                 {
-                    if (p.find("<") == 0 && p.find(":") != std::string::npos)
+                    if (p.find("<") == 0 && p.contains(":"))
                     {
                         line0 = std::stoi(p.substr(p.find(":") + 1));
                     }
-                    else if (p.find("line:") == 0 && p.find(">") != std::string::npos)
+                    else if (p.find("line:") == 0 && p.contains(">"))
                     {
                         line1 = std::stoi(p.substr(5));
                     }
@@ -141,7 +141,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std
     return { funcInfos, funcBodies };
 }
 
-enum class NodeKind  //simplied from CXCursorKind
+enum class NodeKind    //simplied from CXCursorKind
 {
     Unknown,
     Namespace,
@@ -167,7 +167,6 @@ struct UserData
     NodeInfo root;
     std::map<int64_t, NodeInfo*> id2node;
 };
-
 
 CXChildVisitResult visit(CXCursor cursor, CXCursor parent, CXClientData data)
 {
@@ -236,7 +235,6 @@ CXChildVisitResult visit(CXCursor cursor, CXCursor parent, CXClientData data)
     clang_disposeString(fileName);
     clang_disposeString(cursorName);
 
-    
     {
         auto id_parent = (int64_t)parent.data[0];
         NodeInfo* nodePtr = nullptr;
@@ -295,7 +293,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
     std::map<std::string, int> funcInfoIndex;
 
     std::vector<std::string> current_record;
-    
+
     auto make_name = [&]()
     {
         std::string name;
@@ -303,12 +301,12 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
         {
             if (c != "")
             {
-                if (c.find(" ") != std::string::npos)
+                if (c.contains(" "))
                 {
                     name += c;
                 }
                 else
-                {   
+                {
                     name += "::" + c;
                 }
             }
@@ -319,7 +317,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
     {
         if (node.kind == NodeKind::Function)
         {
-            auto name=make_name();
+            auto name = make_name();
             name += "::" + node.name;
             if (node.filename == filename_cpp)
             {
@@ -340,16 +338,12 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
             //std::print("::{} : {} [{},{}] {}\n",
             //    node.name, filefunc::getFileExt(node.filename), node.pos0, node.pos1, node.children.size());
         }
-        if (node.kind== NodeKind::Member)
+        if (node.kind == NodeKind::Member)
         {
             auto name = make_name();
             name += "::" + node.name;
-            if (name=="::cccc::Matrix::data_size_")
-            {
-                int a = 0;
-            }
-            std::print("{} : {} [{},{}] {}\n",
-                   name, filefunc::getFileExt(node.filename), node.pos0, node.pos1, node.children.size());
+            //std::print("{} : {} [{},{}] {}\n",
+            //    name, filefunc::getFileExt(node.filename), node.pos0, node.pos1, node.children.size());
         }
 
         current_record.push_back(node.name);

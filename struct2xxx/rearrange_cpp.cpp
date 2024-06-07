@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 
     //处理换行符
     std::string line_break = "\n";
-    if (cpp_content.find("\r\n") != std::string::npos)
+    if (cpp_content.contains("\r\n"))
     {
         line_break = "\r\n";
     }
