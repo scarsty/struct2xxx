@@ -135,6 +135,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\mlcc\filefunc.cpp" />
     <ClCompile Include="..\..\mlcc\strfunc.cpp" />
+    <ClCompile Include="rubbish.cpp" />
     <ClCompile Include="Struct2xxx.cpp" />
     <ClCompile Include="rearrange_cpp.cpp" />
   </ItemGroup>

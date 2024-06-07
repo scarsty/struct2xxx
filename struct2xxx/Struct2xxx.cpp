@@ -1,9 +1,14 @@
 #include "Struct2xxx.h"
+
+#include <functional>
+
 #include "strfunc.h"
 
 #include <clang-c/Index.h>
 #include <iostream>
+#include <print>
 
+#include "filefunc.h"
 
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std::string& filename_cpp)
 {
@@ -133,63 +138,128 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std
             }
         }
     }
-
     return { funcInfos, funcBodies };
 }
 
+enum class NodeKind  //simplied from CXCursorKind
+{
+    Unknown,
+    Namespace,
+    Struct,
+    Member,
+    Function,
+};
+
+struct NodeInfo
+{
+    NodeKind kind = NodeKind::Unknown;
+    CXCursorKind cursorKind = CXCursorKind::CXCursor_UnexposedDecl;
+    std::string name;
+    CX_CXXAccessSpecifier accessed = CX_CXXInvalidAccessSpecifier;
+    std::map<int, NodeInfo> children;
+    std::string filename;
+    int64_t id = 0;
+    size_t pos0 = 0, pos1 = 0;
+};
+
+struct UserData
+{
+    NodeInfo root;
+    std::map<int64_t, NodeInfo*> id2node;
+};
 
 
 CXChildVisitResult visit(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+    auto& userData = *static_cast<UserData*>(data);
+    auto& root = userData.root;
+    auto& id2node = userData.id2node;
+
     CXCursorKind kind = clang_getCursorKind(cursor);
+    NodeInfo node;
+    node.cursorKind = kind;
+    auto cursorName = clang_getCursorDisplayName(cursor);
+    auto cursorNameString = std::string(clang_getCString(cursorName));
+    node.name = cursorNameString;
 
-    if (kind == CXCursorKind::CXCursor_FunctionDecl || kind == CXCursorKind::CXCursor_CXXMethod)
+    node.accessed = clang_getCXXAccessSpecifier(cursor);
+
+    CXSourceRange range = clang_getCursorExtent(cursor);
+    // Grab the start of the range.
+    CXSourceLocation location0 = clang_getRangeStart(range);
+    CXFile file;
+    unsigned int line;
+    unsigned int column;
+    clang_getFileLocation(location0, &file, &line, &column, nullptr);
+    node.pos0 = line;
+    //end of the range
+    CXSourceLocation location1 = clang_getRangeEnd(range);
+    clang_getFileLocation(location1, &file, &line, &column, nullptr);
+    node.pos1 = line;
+    // Get the name of the file.
+    auto fileName = clang_getFileName(file);
+
+    if (clang_getCString(fileName))
     {
-        // The display name is sometimes more descriptive than the spelling name
-        // (which is just the source code).
-        auto cursorName = clang_getCursorDisplayName(cursor);
-
-        auto cursorNameString = std::string(clang_getCString(cursorName));
-        //if (cursorNameString.find("foo") != std::string::npos)
-        {
-            // Grab the source range, i.e. (start, end) SourceLocation pair.
-            CXSourceRange range = clang_getCursorExtent(cursor);
-
-            // Grab the start of the range.
-            CXSourceLocation location = clang_getRangeStart(range);
-
-            // Decompose the SourceLocation into a location in a file.
-            CXFile file;
-            unsigned int line;
-            unsigned int column;
-            clang_getFileLocation(location, &file, &line, &column, nullptr);
-
-            // Get the name of the file.
-            auto fileName = clang_getFileName(file);
-
-            std::cout << "Found function " << cursorNameString
-                      << " in " << clang_getCString(fileName)
-                      << " at " << line
-                      << ":" << column
-                      << std::endl;
-
-            // Manual cleanup!
-            clang_disposeString(fileName);
-        }
-
-        // Manual cleanup!
-        clang_disposeString(cursorName);
+        node.filename = std::string(clang_getCString(fileName));
     }
 
+    auto id = (int64_t)cursor.data[0];
+    node.id = id;
+
+    if (kind == CXCursorKind::CXCursor_Namespace)
+    {
+        node.kind = NodeKind::Namespace;
+    }
+    else if (kind == CXCursorKind::CXCursor_ClassDecl
+        || kind == CXCursorKind::CXCursor_StructDecl)
+    {
+        node.kind = NodeKind::Struct;
+    }
+    else if (kind == CXCursorKind::CXCursor_FunctionDecl
+        || kind == CXCursorKind::CXCursor_CXXMethod
+        || kind == CXCursorKind::CXCursor_Constructor
+        || kind == CXCursorKind::CXCursor_Destructor)
+    {
+        node.kind = NodeKind::Function;
+    }
+    else if (kind == CXCursorKind::CXCursor_FieldDecl)
+    {
+        node.kind = NodeKind::Member;
+    }
+
+    auto c = clang_getCursorSemanticParent(cursor);
+    parent = c;
+
+    CXCursorKind pkind = clang_getCursorKind(c);
+
+    clang_disposeString(fileName);
+    clang_disposeString(cursorName);
+
+    
+    {
+        auto id_parent = (int64_t)parent.data[0];
+        NodeInfo* nodePtr = nullptr;
+        if (id2node.contains(id_parent))
+        {
+            auto& p = *id2node[id_parent];
+            p.children[p.children.size()] = node;
+            nodePtr = &p.children[p.children.size() - 1];
+        }
+        else
+        {
+            root.children[root.children.size()] = node;
+            nodePtr = &root.children[root.children.size() - 1];
+        }
+        id2node[id] = nodePtr;
+    }
     return CXChildVisit_Recurse;
 }
 
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const std::string& filename_cpp)
 {
 
-
-
-     // excludeDeclsFromPCH = 1, displayDiagnostics = 1
+    // excludeDeclsFromPCH = 1, displayDiagnostics = 1
     CXIndex Index = clang_createIndex(1, 1);
 
     // Expected arguments:
@@ -201,32 +271,96 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
     // 6) The number of CXUnsavedFiles (buffers of unsaved files) in the array,
     // 7) A bitmask of options.
 
-
-    const char* argv[] = {"clang", "-Xclang", "-ast-dump", filename_cpp.c_str() };
+    const char* argv[] = { "clang", "-Xclang", "-ast-dump", filename_cpp.c_str() };
     int argc = 4;
     CXTranslationUnit TU = clang_parseTranslationUnit(
         Index,
         filename_cpp.c_str(),
-        argv+1,
-        argc-2,
+        argv + 1,
+        argc - 2,
         nullptr,
         0,
-        CXTranslationUnit_SkipFunctionBodies);
+        0);
 
-
+    UserData data;
     CXCursor cursor = clang_getTranslationUnitCursor(TU);
-    clang_visitChildren(cursor, visit, nullptr);
+    clang_visitChildren(cursor, visit, &data);
 
     // RAII?
     clang_disposeTranslationUnit(TU);
     clang_disposeIndex(Index);
 
-
     std::vector<FuncInfo> funcInfos;
     std::vector<FuncBody> funcBodies;
+    std::map<std::string, int> funcInfoIndex;
 
+    std::vector<std::string> current_record;
+    
+    auto make_name = [&]()
+    {
+        std::string name;
+        for (auto& c : current_record)
+        {
+            if (c != "")
+            {
+                if (c.find(" ") != std::string::npos)
+                {
+                    name += c;
+                }
+                else
+                {   
+                    name += "::" + c;
+                }
+            }
+        }
+        return name;
+    };
+    std::function<void(NodeInfo&)> check_node = [&](NodeInfo& node)
+    {
+        if (node.kind == NodeKind::Function)
+        {
+            auto name=make_name();
+            name += "::" + node.name;
+            if (node.filename == filename_cpp)
+            {
+                FuncBody fb;
+                fb.name = name;
+                fb.line0 = node.pos0;
+                fb.line1 = node.pos1;
+                fb.index = funcInfoIndex[fb.name];
+                funcBodies.push_back(fb);
+            }
+            else
+            {
+                FuncInfo fi;
+                fi.name = name;
+                funcInfos.push_back(fi);
+                funcInfoIndex[fi.name] = node.pos0;
+            }
+            //std::print("::{} : {} [{},{}] {}\n",
+            //    node.name, filefunc::getFileExt(node.filename), node.pos0, node.pos1, node.children.size());
+        }
+        if (node.kind== NodeKind::Member)
+        {
+            auto name = make_name();
+            name += "::" + node.name;
+            if (name=="::cccc::Matrix::data_size_")
+            {
+                int a = 0;
+            }
+            std::print("{} : {} [{},{}] {}\n",
+                   name, filefunc::getFileExt(node.filename), node.pos0, node.pos1, node.children.size());
+        }
 
+        current_record.push_back(node.name);
+        for (auto& [key, value] : node.children)
+        {
+            check_node(value);
+        }
+        current_record.pop_back();
+    };
 
+    check_node(data.root);
 
-        return { funcInfos, funcBodies };
+    return { funcInfos, funcBodies };
 }

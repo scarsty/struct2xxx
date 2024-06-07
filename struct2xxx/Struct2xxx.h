@@ -1,6 +1,8 @@
 #pragma once
 #include <map>
+#include <queue>
 #include <string>
+#include <tuple>
 #include <vector>
 
 struct FuncInfo
