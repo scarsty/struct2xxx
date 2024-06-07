@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+using namespace Struct2xxx;
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -32,7 +34,7 @@ int main(int argc, char* argv[])
     std::print("Processing {} and {}\n", filename_h, filename_cpp);
 
     //auto [funcInfos, funcBodies] = findFunctions(filename_cpp);
-    auto [funcInfos, funcBodies] = findFunctions2(filename_cpp);
+    auto [funcInfos, funcBodies] = findFunctions3(filename_cpp);
     std::print("Found function bodies:\n");
     for (auto& fb : funcBodies)
     {

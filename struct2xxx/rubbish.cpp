@@ -2,6 +2,8 @@
 #include "nlohmann/json.hpp"
 #include <print>
 
+using namespace Struct2xxx;
+
 void ast_json_111()
 {
     nlohmann::json j;

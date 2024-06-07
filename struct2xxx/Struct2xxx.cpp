@@ -1,15 +1,14 @@
 #include "Struct2xxx.h"
-
-#include <functional>
-
+#include "filefunc.h"
 #include "strfunc.h"
-
 #include <clang-c/Index.h>
+#include <functional>
 #include <iostream>
 #include <print>
+#include "clang/Tooling/Tooling.h"
 
-#include "filefunc.h"
-
+namespace Struct2xxx
+{
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std::string& filename_cpp)
 {
     std::vector<FuncInfo> funcInfos;
@@ -358,3 +357,53 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
 
     return { funcInfos, funcBodies };
 }
+
+std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const std::string& filename_cpp)
+{
+
+    auto str = strfunc::readStringFromFile(filename_cpp);
+
+    auto ast = clang::tooling::buildASTFromCode(str);
+
+    auto DC = ast->getASTContext().getTranslationUnitDecl();
+    
+    
+    for (auto& d : DC->decls())
+    {
+        if (d->getKind() == clang::Decl::Kind::Namespace)
+        {
+            auto ns = static_cast<clang::NamespaceDecl*>(d);
+            std::cout << ns->getNameAsString() << std::endl;
+        }
+        else if (d->getKind() == clang::Decl::Kind::CXXRecord)
+        {
+            auto cxx = static_cast<clang::CXXRecordDecl*>(d);
+            std::cout << cxx->getNameAsString() << std::endl;
+        }
+        else if (d->getKind() == clang::Decl::Kind::CXXMethod)
+        {
+            auto cxx = static_cast<clang::CXXMethodDecl*>(d);
+            std::cout << cxx->getNameAsString() << std::endl;
+        }
+        else if (d->getKind() == clang::Decl::Kind::Function)
+        {
+            auto cxx = static_cast<clang::FunctionDecl*>(d);
+            std::cout << cxx->getNameAsString() << std::endl;
+        }
+    }
+    
+    if (DC)
+
+
+
+
+    {
+        //DC->getParentASTContext();
+    }
+
+    std::vector<FuncInfo> funcInfos;
+    std::vector<FuncBody> funcBodies;
+    std::map<std::string, int> funcInfoIndex;
+    return { funcInfos, funcBodies };
+}
+}    //namespace Struct2xxx
