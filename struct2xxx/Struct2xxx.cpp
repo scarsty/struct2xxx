@@ -1,11 +1,11 @@
 #include "Struct2xxx.h"
 #include "filefunc.h"
 #include "strfunc.h"
+#include "clang/Tooling/Tooling.h"
 #include <clang-c/Index.h>
 #include <functional>
 #include <iostream>
 #include <print>
-#include "clang/Tooling/Tooling.h"
 
 namespace Struct2xxx
 {
@@ -253,7 +253,7 @@ CXChildVisitResult visit(CXCursor cursor, CXCursor parent, CXClientData data)
     return CXChildVisit_Recurse;
 }
 
-std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const std::string& filename_cpp)
+std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const std::string& filename_cpp, const std::vector<std::string>& args)
 {
 
     // excludeDeclsFromPCH = 1, displayDiagnostics = 1
@@ -358,47 +358,190 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
     return { funcInfos, funcBodies };
 }
 
-std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const std::string& filename_cpp)
+std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const std::string& filename_cpp, const std::vector<std::string>& args)
 {
 
     auto str = strfunc::readStringFromFile(filename_cpp);
 
-    auto ast = clang::tooling::buildASTFromCode(str);
+    auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args);
 
     auto DC = ast->getASTContext().getTranslationUnitDecl();
-    
-    
+
+    NodeInfo root;
+    std::map<int64_t, NodeInfo*> id2node;
+
+    int depth = 0;
+
+    std::function<std::string(const clang::QualType&)> deal_type = [&](const clang::QualType& t)
+    {
+        //return t.getAsString();
+        std::string type_string;
+        auto tc = t->getTypeClass();
+        if (tc == clang::Type::TypeClass::Pointer)
+        {
+            auto t2 = t->getPointeeType();
+            type_string = deal_type(t2) + "*";
+        }
+        else if (tc == clang::Type::TypeClass::LValueReference)
+        {
+            auto t2 = t->getPointeeType();
+            type_string = deal_type(t2) + "&";
+        }
+        else if (tc == clang::Type::TypeClass::RValueReference)
+        {
+            auto t2 = t->getPointeeType();
+            type_string = deal_type(t2) + "&&";
+        }
+        else if (t.isConstQualified())
+        {
+            auto t2 = t.getUnqualifiedType();
+            type_string = "const " + deal_type(t2);
+        }
+        else if (tc == clang::Type::TypeClass::Elaborated)
+        {
+            if (auto t2 = t->getAs<clang::RecordType>())
+            {
+                type_string = t2->desugar().getAsString();
+            }
+            else if (auto t2 = t->getAs<clang::TypedefType>())
+            {
+                type_string = t2->desugar().getAsString();
+            }
+            else if (auto t2 = t->getAs<clang::TemplateSpecializationType>())
+            {
+                type_string = t.getAsString();
+            }
+        }
+        else if (tc == clang::Type::TypeClass::Builtin)
+        {
+            type_string = t.getAsString();
+        }
+        else
+        {
+            type_string = t.getAsString();
+        }
+        return type_string;
+    };
+
+    auto make_para_string = [&](const llvm::MutableArrayRef<clang::ParmVarDecl*>& params)
+    {
+        std::string para_string = "(";
+        for (auto& p : params)
+        {
+            para_string += deal_type(p->getType()) + ",";
+        }
+        if (params.size() > 0)
+        {
+            para_string.pop_back();
+        }
+        para_string += ")";
+        return para_string;
+    };
+
+    std::function<void(clang::Decl*)> check_decl = [&](clang::Decl* decl)
+    {
+        depth++;
+        if (decl->getKind() == clang::Decl::Kind::Namespace)
+        {
+            auto d1 = static_cast<clang::NamespaceDecl*>(decl);
+
+            auto name = d1->getQualifiedNameAsString();
+
+            //std::cout << std::string(depth, ' ') << name << std::endl;
+
+            for (auto& d : d1->decls())
+            {
+                check_decl(d);
+            }
+        }
+        else if (decl->getKind() == clang::Decl::Kind::CXXRecord)
+        {
+            auto d1 = static_cast<clang::CXXRecordDecl*>(decl);
+            auto name = d1->getQualifiedNameAsString();
+            //std::cout << std::string(depth, ' ') << name << std::endl;
+            for (auto& d : d1->decls())
+            {
+                check_decl(d);
+            }
+        }
+        else if (decl->getKind() == clang::Decl::Kind::CXXMethod)
+        {
+            auto d1 = static_cast<clang::CXXMethodDecl*>(decl);
+            auto d = d1->getParent();
+            auto name1 = d1->getQualifiedNameAsString();
+            //std::cout << "  m " << name1;
+            //std::cout << make_para_string(d1->parameters()) << std::endl;
+        }
+        else if (decl->getKind() == clang::Decl::Kind::CXXConstructor)
+        {
+            auto d1 = static_cast<clang::CXXConstructorDecl*>(decl);
+            auto d = d1->getParent();
+            auto name1 = d1->getQualifiedNameAsString();
+            //std::cout << "  c " << name1;
+            //std::cout << make_para_string(d1->parameters()) << std::endl;
+        }
+        else if (decl->getKind() == clang::Decl::Kind::CXXDestructor)
+        {
+            auto d1 = static_cast<clang::CXXDestructorDecl*>(decl);
+            auto d = d1->getParent();
+            auto name1 = d1->getQualifiedNameAsString();
+            //std::cout << "  d " << name1;
+            //std::cout << make_para_string(d1->parameters()) << std::endl;
+        }
+        else if (decl->getKind() == clang::Decl::Kind::Function)
+        {
+            auto d1 = static_cast<clang::FunctionDecl*>(decl);
+            auto name1 = d1->getQualifiedNameAsString();
+            //std::cout << "  f " << name1;
+            int x = 0;
+            if (name1 == "test" || name1 == "cccc::test")
+            {
+                x = 1;
+                //d1->dump();
+            }
+            //std::cout << make_para_string(d1->parameters()) << std::endl;
+            //d1->getType().dump();
+            auto params = d1->parameters();
+
+            int i = 0;
+            if (x == 1)
+            {
+                std::cout << make_para_string(d1->parameters()) << std::endl;
+
+                for (auto p : params)
+                {
+                    std::cout << i++ << std::endl;
+                    auto t = p->getType();
+                    //t.getTypePtr()->dump();
+                    t->dump();
+                    std::cout << t.getQualifiers().getAsString() << std::endl;
+                    //std::cout << clang::QualType::getAsString(t.split()) << std::endl;
+                    //类型分析要递归，逐步去掉引用，常量，指针等
+                    //std::cout << t->getTypeClassName() << std::endl;
+                    auto tc = t->getTypeClass();
+                    //auto is_const = t.isConstQualified();
+                    //std::cout << is_const << std::endl;
+                    //std::cout << "canoinical" << std::endl;
+                    //t.getCanonicalType().dump();
+                    //auto tq = t.getQualifiers();
+                    //std::cout << tq.getAsString() << std::endl;
+                    //std::cout << "unqualifiers" << std::endl;
+                    //t.getUnqualifiedType().dump();
+
+                    if (tc == clang::Type::TypeClass::Pointer || tc == clang::Type::TypeClass::LValueReference || tc == clang::Type::TypeClass::LValueReference)
+                    {
+                        auto t3 = t->getPointeeType();
+                        //t3->dump();
+                    }
+                }
+            }
+        }
+        depth--;
+    };
+
     for (auto& d : DC->decls())
     {
-        if (d->getKind() == clang::Decl::Kind::Namespace)
-        {
-            auto ns = static_cast<clang::NamespaceDecl*>(d);
-            std::cout << ns->getNameAsString() << std::endl;
-        }
-        else if (d->getKind() == clang::Decl::Kind::CXXRecord)
-        {
-            auto cxx = static_cast<clang::CXXRecordDecl*>(d);
-            std::cout << cxx->getNameAsString() << std::endl;
-        }
-        else if (d->getKind() == clang::Decl::Kind::CXXMethod)
-        {
-            auto cxx = static_cast<clang::CXXMethodDecl*>(d);
-            std::cout << cxx->getNameAsString() << std::endl;
-        }
-        else if (d->getKind() == clang::Decl::Kind::Function)
-        {
-            auto cxx = static_cast<clang::FunctionDecl*>(d);
-            std::cout << cxx->getNameAsString() << std::endl;
-        }
-    }
-    
-    if (DC)
-
-
-
-
-    {
-        //DC->getParentASTContext();
+        check_decl(d);
     }
 
     std::vector<FuncInfo> funcInfos;

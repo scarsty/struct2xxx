@@ -33,8 +33,12 @@ int main(int argc, char* argv[])
 
     std::print("Processing {} and {}\n", filename_h, filename_cpp);
 
-    //auto [funcInfos, funcBodies] = findFunctions(filename_cpp);
-    auto [funcInfos, funcBodies] = findFunctions3(filename_cpp);
+    auto [funcInfos, funcBodies] = findFunctions3(filename_cpp,
+        { "--std=c++23",
+            "-I../../mlcc",
+            "-I../include",
+            R"(-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include)",
+            "-I../cccc-cuda" });
     std::print("Found function bodies:\n");
     for (auto& fb : funcBodies)
     {
@@ -127,3 +131,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+void rest(std::vector<int>)
+{
+}
