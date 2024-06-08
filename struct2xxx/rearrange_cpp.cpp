@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
     std::string cpp_content = strfunc::readStringFromFile(filename_cpp);
     filefunc::changePath(filefunc::getFilePath(filename_cpp));
 
-    std::print("Processing {} and {}\n", filename_h, filename_cpp);
+    std::print("Processing {}\n", filename_cpp);
 
     auto [funcInfos, funcBodies] = findFunctions3(filename_cpp,
         { "--std=c++23",
@@ -39,10 +39,11 @@ int main(int argc, char* argv[])
             "-I../include",
             R"(-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include)",
             "-I../cccc-cuda" });
+
     std::print("Found function bodies:\n");
     for (auto& fb : funcBodies)
     {
-        std::print("  {} : {}\n", fb.name, fb.index);
+        std::print("{} : {} [{}, {}]\n", fb.name, fb.index, fb.line0, fb.line1);
     }
 
     //处理换行符

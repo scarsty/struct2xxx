@@ -1,4 +1,4 @@
-#include "Struct2xxx.h"
+Ôªø#include "Struct2xxx.h"
 #include "filefunc.h"
 #include "strfunc.h"
 #include "clang/Tooling/Tooling.h"
@@ -102,7 +102,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std
                 prefix += "::" + c.name;
             }
             prefix += "::";
-            if (class_name != "")    //¿‡√˚∑« ◊¥Œ≥ˆœ÷£¨ «“ª∏ˆ µœ÷
+            if (class_name != "")    //Á±ªÂêçÈùûÈ¶ñÊ¨°Âá∫Áé∞ÔºåÊòØ‰∏Ä‰∏™ÂÆûÁé∞
             {
                 name = prefix + class_name + "::" + name;
                 int line0 = 0, line1 = 0;
@@ -127,7 +127,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions(const std
             else
             {
                 name = prefix + name;
-                if (!funcInfoIndex.contains(name))    //»´√˚ ◊¥Œ≥ˆœ÷£¨»œŒ™ «“ª∏ˆ…˘√˜
+                if (!funcInfoIndex.contains(name))    //ÂÖ®ÂêçÈ¶ñÊ¨°Âá∫Áé∞ÔºåËÆ§‰∏∫ÊòØ‰∏Ä‰∏™Â£∞Êòé
                 {
                     FuncInfo fi;
                     fi.name = name;
@@ -255,8 +255,6 @@ CXChildVisitResult visit(CXCursor cursor, CXCursor parent, CXClientData data)
 
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const std::string& filename_cpp, const std::vector<std::string>& args)
 {
-
-    // excludeDeclsFromPCH = 1, displayDiagnostics = 1
     CXIndex Index = clang_createIndex(1, 1);
 
     // Expected arguments:
@@ -268,13 +266,20 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
     // 6) The number of CXUnsavedFiles (buffers of unsaved files) in the array,
     // 7) A bitmask of options.
 
-    const char* argv[] = { "clang", "-Xclang", "-ast-dump", filename_cpp.c_str() };
-    int argc = 4;
+    auto argv = new const char*[args.size() + 3];
+    argv[0] = "clang";
+    argv[1] = "-cc1";
+    argv[2] = "-ast-dump";
+    for (int i = 0; i < args.size(); i++)
+    {
+        argv[i + 3] = args[i].c_str();
+    }
+    int argc = args.size() + 3;
     CXTranslationUnit TU = clang_parseTranslationUnit(
         Index,
         filename_cpp.c_str(),
         argv + 1,
-        argc - 2,
+        argc - 1,
         nullptr,
         0,
         0);
@@ -302,7 +307,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
             {
                 if (c.contains(" "))
                 {
-                    name += c;
+                    name += "::" + c.substr(c.find(" ") + 1);
                 }
                 else
                 {
@@ -324,15 +329,16 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
                 fb.name = name;
                 fb.line0 = node.pos0;
                 fb.line1 = node.pos1;
-                fb.index = funcInfoIndex[fb.name];
+                //fb.index = funcInfoIndex[fb.name];
                 funcBodies.push_back(fb);
             }
             else
             {
                 FuncInfo fi;
                 fi.name = name;
+                fi.index = funcInfos.size();
+                funcInfoIndex[fi.name] = funcInfos.size();
                 funcInfos.push_back(fi);
-                funcInfoIndex[fi.name] = node.pos0;
             }
             //std::print("::{} : {} [{},{}] {}\n",
             //    node.name, filefunc::getFileExt(node.filename), node.pos0, node.pos1, node.children.size());
@@ -354,6 +360,11 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
     };
 
     check_node(data.root);
+    //‰øÆÊ≠£Á¥¢Âºï
+    for (auto& fb : funcBodies)
+    {
+        fb.index = funcInfoIndex[fb.name];
+    }
 
     return { funcInfos, funcBodies };
 }
@@ -362,16 +373,10 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
 {
 
     auto str = strfunc::readStringFromFile(filename_cpp);
-
-    auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args);
-
+    auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args, filename_cpp);
     auto DC = ast->getASTContext().getTranslationUnitDecl();
 
-    NodeInfo root;
-    std::map<int64_t, NodeInfo*> id2node;
-
-    int depth = 0;
-
+    //ÂæóÂà∞Á±ªÂûãÁöÑÂ≠óÁ¨¶‰∏≤Ë°®Á§∫
     std::function<std::string(const clang::QualType&)> deal_type = [&](const clang::QualType& t)
     {
         //return t.getAsString();
@@ -380,17 +385,23 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
         if (tc == clang::Type::TypeClass::Pointer)
         {
             auto t2 = t->getPointeeType();
-            type_string = deal_type(t2) + "*";
+            type_string = deal_type(t2);
+            if (type_string.find_last_not_of("*&") == type_string.size() - 1) { type_string += ' '; }
+            type_string += "*";
         }
         else if (tc == clang::Type::TypeClass::LValueReference)
         {
             auto t2 = t->getPointeeType();
-            type_string = deal_type(t2) + "&";
+            type_string = deal_type(t2);
+            if (type_string.find_last_not_of("*&") == type_string.size() - 1) { type_string += ' '; }
+            type_string += "&";
         }
         else if (tc == clang::Type::TypeClass::RValueReference)
         {
             auto t2 = t->getPointeeType();
-            type_string = deal_type(t2) + "&&";
+            type_string = deal_type(t2);
+            if (type_string.find_last_not_of("*&") == type_string.size() - 1) { type_string += ' '; }
+            type_string += "&&";
         }
         else if (t.isConstQualified())
         {
@@ -408,6 +419,14 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
                 type_string = t2->desugar().getAsString();
             }
             else if (auto t2 = t->getAs<clang::TemplateSpecializationType>())
+            {
+                type_string = t2->desugar().getAsString();
+            }
+            else if (auto t2 = t->getAs<clang::EnumType>())
+            {
+                type_string = t2->desugar().getAsString();
+            }
+            else
             {
                 type_string = t.getAsString();
             }
@@ -438,17 +457,19 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
         return para_string;
     };
 
+    int depth = 0;
+    std::vector<FuncInfo> funcInfos;
+    std::vector<FuncBody> funcBodies;
+    std::map<std::string, int> funcInfoIndex;
     std::function<void(clang::Decl*)> check_decl = [&](clang::Decl* decl)
     {
         depth++;
+        std::string name1;
+        bool isFunc = false;
         if (decl->getKind() == clang::Decl::Kind::Namespace)
         {
             auto d1 = static_cast<clang::NamespaceDecl*>(decl);
-
-            auto name = d1->getQualifiedNameAsString();
-
-            //std::cout << std::string(depth, ' ') << name << std::endl;
-
+            name1 = d1->getQualifiedNameAsString();
             for (auto& d : d1->decls())
             {
                 check_decl(d);
@@ -457,8 +478,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
         else if (decl->getKind() == clang::Decl::Kind::CXXRecord)
         {
             auto d1 = static_cast<clang::CXXRecordDecl*>(decl);
-            auto name = d1->getQualifiedNameAsString();
-            //std::cout << std::string(depth, ' ') << name << std::endl;
+            name1 = d1->getQualifiedNameAsString();
             for (auto& d : d1->decls())
             {
                 check_decl(d);
@@ -467,75 +487,61 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
         else if (decl->getKind() == clang::Decl::Kind::CXXMethod)
         {
             auto d1 = static_cast<clang::CXXMethodDecl*>(decl);
-            auto d = d1->getParent();
-            auto name1 = d1->getQualifiedNameAsString();
-            //std::cout << "  m " << name1;
-            //std::cout << make_para_string(d1->parameters()) << std::endl;
+            name1 = d1->getQualifiedNameAsString() + make_para_string(d1->parameters());
+            isFunc = true;
         }
         else if (decl->getKind() == clang::Decl::Kind::CXXConstructor)
         {
             auto d1 = static_cast<clang::CXXConstructorDecl*>(decl);
-            auto d = d1->getParent();
-            auto name1 = d1->getQualifiedNameAsString();
-            //std::cout << "  c " << name1;
-            //std::cout << make_para_string(d1->parameters()) << std::endl;
+            name1 = d1->getQualifiedNameAsString() + make_para_string(d1->parameters());
+            isFunc = true;
         }
         else if (decl->getKind() == clang::Decl::Kind::CXXDestructor)
         {
             auto d1 = static_cast<clang::CXXDestructorDecl*>(decl);
-            auto d = d1->getParent();
-            auto name1 = d1->getQualifiedNameAsString();
-            //std::cout << "  d " << name1;
-            //std::cout << make_para_string(d1->parameters()) << std::endl;
+            name1 = d1->getQualifiedNameAsString() + make_para_string(d1->parameters());
+            isFunc = true;
         }
         else if (decl->getKind() == clang::Decl::Kind::Function)
         {
             auto d1 = static_cast<clang::FunctionDecl*>(decl);
-            auto name1 = d1->getQualifiedNameAsString();
-            //std::cout << "  f " << name1;
-            int x = 0;
-            if (name1 == "test" || name1 == "cccc::test")
+            name1 = d1->getQualifiedNameAsString() + make_para_string(d1->parameters());
+            isFunc = true;
+            /*if (name1.contains("test("))
             {
-                x = 1;
-                //d1->dump();
-            }
-            //std::cout << make_para_string(d1->parameters()) << std::endl;
-            //d1->getType().dump();
-            auto params = d1->parameters();
-
-            int i = 0;
-            if (x == 1)
-            {
-                std::cout << make_para_string(d1->parameters()) << std::endl;
-
-                for (auto p : params)
+                for (auto& p : d1->parameters())
                 {
-                    std::cout << i++ << std::endl;
                     auto t = p->getType();
-                    //t.getTypePtr()->dump();
                     t->dump();
-                    std::cout << t.getQualifiers().getAsString() << std::endl;
-                    //std::cout << clang::QualType::getAsString(t.split()) << std::endl;
-                    //¿‡–Õ∑÷Œˆ“™µ›πÈ£¨÷≤Ω»•µÙ“˝”√£¨≥£¡ø£¨÷∏’Îµ»
-                    //std::cout << t->getTypeClassName() << std::endl;
-                    auto tc = t->getTypeClass();
-                    //auto is_const = t.isConstQualified();
-                    //std::cout << is_const << std::endl;
-                    //std::cout << "canoinical" << std::endl;
-                    //t.getCanonicalType().dump();
-                    //auto tq = t.getQualifiers();
-                    //std::cout << tq.getAsString() << std::endl;
-                    //std::cout << "unqualifiers" << std::endl;
-                    //t.getUnqualifiedType().dump();
-
-                    if (tc == clang::Type::TypeClass::Pointer || tc == clang::Type::TypeClass::LValueReference || tc == clang::Type::TypeClass::LValueReference)
-                    {
-                        auto t3 = t->getPointeeType();
-                        //t3->dump();
-                    }
                 }
+            }*/
+        }
+        if (isFunc)
+        {
+            auto loc0 = decl->getBeginLoc();
+            auto loc1 = decl->getEndLoc();
+            auto& srcmgr = ast->getSourceManager();
+            auto filename = srcmgr.getFilename(loc0).str();
+
+            if (filename != filename_cpp)
+            {
+                FuncInfo fi;
+                fi.name = name1;
+                fi.index = funcInfos.size();
+                funcInfoIndex[fi.name] = funcInfos.size();
+                funcInfos.push_back(fi);
+            }
+            else
+            {
+                FuncBody fb;
+                fb.name = name1;
+                fb.line0 = srcmgr.getSpellingLineNumber(loc0);
+                fb.line1 = srcmgr.getSpellingLineNumber(loc1);
+                //fb.index = funcInfoIndex[fb.name];
+                funcBodies.push_back(fb);
             }
         }
+
         depth--;
     };
 
@@ -543,10 +549,12 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const st
     {
         check_decl(d);
     }
+    //‰øÆÊ≠£Á¥¢Âºï
+    for (auto& fb : funcBodies)
+    {
+        fb.index = funcInfoIndex[fb.name];
+    }
 
-    std::vector<FuncInfo> funcInfos;
-    std::vector<FuncBody> funcBodies;
-    std::map<std::string, int> funcInfoIndex;
     return { funcInfos, funcBodies };
 }
 }    //namespace Struct2xxx
