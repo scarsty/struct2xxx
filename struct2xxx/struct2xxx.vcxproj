@@ -141,7 +141,7 @@
     <ClCompile Include="..\..\mlcc\strfunc.cpp" />
     <ClCompile Include="rubbish.cpp" />
     <ClCompile Include="Struct2xxx.cpp" />
-    <ClCompile Include="rearrange_cpp.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

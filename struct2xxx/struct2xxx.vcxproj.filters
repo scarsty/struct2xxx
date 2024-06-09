@@ -23,7 +23,7 @@
     <ClCompile Include="Struct2xxx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="rearrange_cpp.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\..\mlcc\filefunc.cpp">

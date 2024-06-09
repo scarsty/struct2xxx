@@ -1,39 +1,26 @@
 ﻿#include "Struct2xxx.h"
 #include "filefunc.h"
-
 #include "strfunc.h"
-#include <Windows.h>
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <print>
-#include <sstream>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string>
 #include <vector>
 
 using namespace Struct2xxx;
 
-int main(int argc, char* argv[])
+void rearrange_cpp(const std::string& filename_cpp)
 {
-    if (argc < 2)
-    {
-        std::print("Usage: {} <filename>\n", argv[0]);
-        return 1;
-    }
-
-    std::string filename = argv[1];
-    filename = filefunc::changeFileExt(filename, "");
-    std::string filename_h = filename + ".h";
-    std::string filename_cpp = filename + ".cpp";
-    std::string h_content = strfunc::readStringFromFile(filename_h);
-    std::string cpp_content = strfunc::readStringFromFile(filename_cpp);
+    //读入的文件认为是cpp文件
+    auto filename = filefunc::getFileMainname(filename_cpp);
+    std::string filename_h = filename + ".h";    
+    std::string h_content = filefunc::readStringFromFile(filename_h);
+    std::string cpp_content = filefunc::readStringFromFile(filename_cpp);
     filefunc::changePath(filefunc::getFilePath(filename_cpp));
 
     std::print("Processing {}\n", filename_cpp);
 
-    auto [funcInfos, funcBodies] = findFunctions3(filename_cpp,
+    auto [funcInfos, funcBodies] = findFunctions3(filename_h,
         { "--std=c++23",
             "-I../../mlcc",
             "-I../include",
@@ -129,9 +116,16 @@ int main(int argc, char* argv[])
         std::print("No change\n");
     }
     std::print("End\n");
-    return 0;
 }
 
-void rest(std::vector<int>)
+
+int main(int argc, char* argv[])
 {
+    if (argc < 2)
+    {
+        std::print("Usage: {} <filename>\n", argv[0]);
+        return 1;
+    }
+    rearrange_cpp(argv[1]);  
+    return 0;
 }
