@@ -2,7 +2,6 @@
 #include "filefunc.h"
 #include "strfunc.h"
 #include <algorithm>
-#include <map>
 #include <print>
 #include <string>
 #include <vector>
@@ -13,15 +12,16 @@ void rearrange_cpp(const std::string& filename_cpp)
 {
     //读入的文件认为是cpp文件
     auto filename = filefunc::getFileMainname(filename_cpp);
-    std::string filename_h = filename + ".h";    
-    std::string h_content = filefunc::readStringFromFile(filename_h);
-    std::string cpp_content = filefunc::readStringFromFile(filename_cpp);
+    std::string filename_h = filename + ".h";
+    std::string h_content = filefunc::readFileToString(filename_h);
+    std::string cpp_content = filefunc::readFileToString(filename_cpp);
     filefunc::changePath(filefunc::getFilePath(filename_cpp));
 
     std::print("Processing {}\n", filename_cpp);
 
-    auto [funcInfos, funcBodies] = findFunctions3(filename_h,
+    auto [funcInfos, funcBodies] = findFunctions3(filename_cpp,
         { "--std=c++23",
+            "--language=c++",
             "-I../../mlcc",
             "-I../include",
             R"(-IC:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include)",
@@ -118,7 +118,6 @@ void rearrange_cpp(const std::string& filename_cpp)
     std::print("End\n");
 }
 
-
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -126,6 +125,6 @@ int main(int argc, char* argv[])
         std::print("Usage: {} <filename>\n", argv[0]);
         return 1;
     }
-    rearrange_cpp(argv[1]);  
+    rearrange_cpp(argv[1]);
     return 0;
 }

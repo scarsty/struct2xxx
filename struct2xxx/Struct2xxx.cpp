@@ -371,7 +371,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions2(const st
 
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> findFunctions3(const std::string& filename_cpp, const std::vector<std::string>& args)
 {
-    auto str = filefunc::readStringFromFile(filename_cpp);
+    auto str = filefunc::readFileToString(filename_cpp);
     auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args, filename_cpp);
     auto DC = ast->getASTContext().getTranslationUnitDecl();
 
