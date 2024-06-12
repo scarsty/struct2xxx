@@ -3,8 +3,6 @@
 #include "strfunc.h"
 #include <algorithm>
 #include <print>
-#include <string>
-#include <vector>
 
 using namespace Struct2xxx;
 
@@ -19,7 +17,7 @@ void rearrange_cpp(const std::string& filename_cpp)
 
     std::print("Processing {}\n", filename_cpp);
 
-    auto [funcInfos, funcBodies] = findFunctions3(filename_cpp,
+    auto [func_infos, func_bodies] = find_functions2(filename_cpp,
         { "--std=c++23",
             "--language=c++",
             "-I../../mlcc",
@@ -28,7 +26,7 @@ void rearrange_cpp(const std::string& filename_cpp)
             "-I../cccc-cuda" });
 
     std::print("Found function bodies:\n");
-    for (auto& fb : funcBodies)
+    for (auto& fb : func_bodies)
     {
         std::print("{} : {} [{}, {}]\n", fb.name, fb.index, fb.line0, fb.line1);
     }
@@ -42,7 +40,7 @@ void rearrange_cpp(const std::string& filename_cpp)
     auto new_cpp_content = strfunc::replaceAllSubString(cpp_content, "\r", "");
     auto lines_cpp = strfunc::splitString(new_cpp_content, "\n", false);
     std::vector<FuncBody*> lines_below(lines_cpp.size());
-    for (auto& fb : funcBodies)
+    for (auto& fb : func_bodies)
     {
         for (int i = fb.line0 - 1; i <= fb.line1 - 1; i++)
         {
@@ -87,9 +85,9 @@ void rearrange_cpp(const std::string& filename_cpp)
         fb_tail.body.pop_back();
     }
     //排序
-    if (funcBodies.size() > 1)
+    if (func_bodies.size() > 1)
     {
-        std::sort(funcBodies.begin(), funcBodies.end(), [&](const FuncBody& a, const FuncBody& b)
+        std::sort(func_bodies.begin(), func_bodies.end(), [&](const FuncBody& a, const FuncBody& b)
             {
                 return a.index < b.index;
             });
@@ -97,14 +95,14 @@ void rearrange_cpp(const std::string& filename_cpp)
     //生成新的cpp文件
     new_cpp_content.clear();
     new_cpp_content += fb_head.body;
-    for (auto& fb : funcBodies)
+    for (auto& fb : func_bodies)
     {
         new_cpp_content += fb.body;
     }
     new_cpp_content += fb_tail.body;
     strfunc::replaceAllSubStringRef(new_cpp_content, "\n", line_break);
-    std::print("Found {} function declares\n", funcInfos.size());
-    std::print("Found {} function bodies\n", funcBodies.size());
+    std::print("Found {} function declares\n", func_infos.size());
+    std::print("Found {} function bodies\n", func_bodies.size());
     if (new_cpp_content != cpp_content)
     {
         //CopyFileA(filename_cpp.c_str(), (filename + std::to_string(time(nullptr)) + ".cpp").c_str(), FALSE);
@@ -118,6 +116,71 @@ void rearrange_cpp(const std::string& filename_cpp)
     std::print("End\n");
 }
 
+void makexxx(const std::string& filename_cpp, const std::string& class_name = "", const std::string xxx = "XXX", const std::string& out_filename = "")
+{
+    auto filename = filefunc::getFileMainname(filename_cpp);
+    std::string filename_h = filename + ".h";
+    std::string h_content = filefunc::readFileToString(filename_h);
+    std::string cpp_content = filefunc::readFileToString(filename_cpp);
+    filefunc::changePath(filefunc::getFilePath(filename_cpp));
+
+    std::string c_name = class_name;
+    if (c_name.empty())
+    {
+        c_name = filefunc::getFileMainname(filefunc::getFilenameWithoutPath(filename_cpp));
+    }
+
+    std::print("Processing {}\n", filename_cpp);
+
+    auto [c_name1, template_str, member_infos] = find_members(filename_cpp, c_name,
+        { "--std=c++23",
+            "--language=c++",
+            "-I../../local/include1" });
+
+    std::print("Found {} members:\n", member_infos.size());
+    for (auto& mi : member_infos)
+    {
+        std::print("{} : {} (public: {}, const: {})\n", mi.full_name, mi.type, mi.is_public, mi.is_const);
+    }
+    std::print("\n");
+    std::print("Make codes like this:\n\n", member_infos.size());
+
+    std::string str;
+    if (template_str != "") { template_str += "\n"; }
+    str += std::format("{}void {}2{}(const {}& v, {}& x)\n{{\n", template_str, c_name, xxx, c_name1, xxx);
+    for (auto& mi : member_infos)
+    {
+        str += std::format("    x[\"{}\"] = v.{};\n", mi.name, mi.name);
+    }
+    str += std::format("}}\n\n");
+
+    str += std::format("{}void {}2{}(const {}& x, {}& v)\n{{\n", template_str, xxx, c_name, xxx, c_name1);
+    for (auto& mi : member_infos)
+    {
+        if (mi.is_public && !mi.is_const)
+        {
+            str += std::format("    v.{} = x[\"{}\"];\n", mi.name, mi.name);
+        }
+    }
+    str += std::format("}}\n\n");
+    std::print("{}\n", str);
+
+    //若没有变动，则不保存
+    if (out_filename != "")
+    {
+        auto str0 = filefunc::readFileToString(out_filename);
+        if (str0 != str)
+        {
+            filefunc::writeStringToFile(str, out_filename);
+            std::print("Change have saved in {}\n", out_filename);
+        }
+        else
+        {
+            std::print("No change\n");
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -125,6 +188,6 @@ int main(int argc, char* argv[])
         std::print("Usage: {} <filename>\n", argv[0]);
         return 1;
     }
-    rearrange_cpp(argv[1]);
+    makexxx(argv[1], "_Rect");
     return 0;
 }

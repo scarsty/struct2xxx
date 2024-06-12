@@ -125,6 +125,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>../../mlcc</AdditionalIncludeDirectories>
       <BuildStlModules>true</BuildStlModules>
+      <TranslateIncludes>false</TranslateIncludes>
+      <ScanSourceForModuleDependencies>true</ScanSourceForModuleDependencies>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
