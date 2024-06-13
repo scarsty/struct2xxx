@@ -1,15 +1,17 @@
-﻿#include "Struct2xxx.h"
-#include "filefunc.h"
+﻿#include "filefunc.h"
 #include "strfunc.h"
-#include <algorithm>
-#include <print>
+
+
+import Struct2xxx;
+
+import std;
 
 using namespace Struct2xxx;
 
 void rearrange_cpp(const std::string& filename_cpp)
 {
     //读入的文件认为是cpp文件
-    auto filename = filefunc::getFileMainname(filename_cpp);
+    auto filename = filefunc::getFileMainName(filename_cpp);
     std::string filename_h = filename + ".h";
     std::string h_content = filefunc::readFileToString(filename_h);
     std::string cpp_content = filefunc::readFileToString(filename_cpp);
@@ -118,7 +120,7 @@ void rearrange_cpp(const std::string& filename_cpp)
 
 void makexxx(const std::string& filename_cpp, const std::string& class_name = "", const std::string xxx = "XXX", const std::string& out_filename = "")
 {
-    auto filename = filefunc::getFileMainname(filename_cpp);
+    auto filename = filefunc::getFileMainName(filename_cpp);
     std::string filename_h = filename + ".h";
     std::string h_content = filefunc::readFileToString(filename_h);
     std::string cpp_content = filefunc::readFileToString(filename_cpp);
@@ -127,7 +129,7 @@ void makexxx(const std::string& filename_cpp, const std::string& class_name = ""
     std::string c_name = class_name;
     if (c_name.empty())
     {
-        c_name = filefunc::getFileMainname(filefunc::getFilenameWithoutPath(filename_cpp));
+        c_name = filefunc::getFileMainNameWithoutPath(filename_cpp);
     }
 
     std::print("Processing {}\n", filename_cpp);

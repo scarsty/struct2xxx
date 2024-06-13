@@ -1,8 +1,5 @@
-﻿#include "Struct2xxx.h"
-#include "filefunc.h"
+﻿#include "filefunc.h"
 #include "strfunc.h"
-#include <map>
-#include <print>
 
 #include "clang-c/Index.h"
 
@@ -10,8 +7,48 @@
 
 #include "clang/AST/AST.h"
 
-namespace Struct2xxx
+#include <cstdint>
+
+export module Struct2xxx;
+
+import std;
+
+export namespace Struct2xxx
 {
+
+struct FuncInfo
+{
+    std::string name;
+    int64_t index = 0;
+};
+
+struct FuncBody
+{
+    std::string name;
+    std::string body;
+    int line0, line1;
+    int64_t index = 0;
+};
+
+struct ClassInfo
+{
+    std::string name;
+    size_t pos = 0;
+    int64_t id;
+    int is_class = 0;
+};
+
+struct MemberInfo
+{
+    std::string name;
+    std::string full_name;
+    std::string type;
+    int64_t id;
+    int is_member = 0;
+    int is_public = 1;
+    int is_const = 0;
+};
+
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> find_functions(const std::string& filename_cpp)
 {
     std::vector<FuncInfo> funcInfos;

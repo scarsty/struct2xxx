@@ -125,7 +125,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>../../mlcc</AdditionalIncludeDirectories>
       <BuildStlModules>true</BuildStlModules>
-      <TranslateIncludes>false</TranslateIncludes>
+      <TranslateIncludes>true</TranslateIncludes>
       <ScanSourceForModuleDependencies>true</ScanSourceForModuleDependencies>
     </ClCompile>
     <Link>
@@ -136,9 +136,6 @@
       <AdditionalDependencies>Version.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="Struct2xxx.h" />
-  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\mlcc\filefunc.cpp" />
     <ClCompile Include="..\..\mlcc\strfunc.cpp" />
