@@ -1,13 +1,9 @@
 ﻿#include "filefunc.h"
 #include "strfunc.h"
 
-#include "clang-c/Index.h"
-
-#include "clang/Tooling/Tooling.h"
-
-#include "clang/AST/AST.h"
-
 #include <cstdint>
+
+#include "clang-m.h"
 
 export module Struct2xxx;
 
@@ -597,7 +593,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> find_functions3(const s
     return { func_infos, func_bodies };
 }
 
-std::tuple<std::string, std::string, std::vector<MemberInfo>> find_members(const std::string& filename_cpp, const std::string& class_name, const std::vector<std::string>& args)
+std::tuple<std::string, std::string, std::vector<MemberInfo>> find_members(const std::string& filename_cpp, const std::string& class_name = "", const std::vector<std::string>& args = {})
 {
     auto str = filefunc::readFileToString(filename_cpp);
     auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args, filename_cpp);

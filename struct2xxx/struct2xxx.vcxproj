@@ -127,6 +127,7 @@
       <BuildStlModules>true</BuildStlModules>
       <TranslateIncludes>true</TranslateIncludes>
       <ScanSourceForModuleDependencies>true</ScanSourceForModuleDependencies>
+      <PreprocessToFile>false</PreprocessToFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -139,6 +140,9 @@
   <ItemGroup>
     <ClCompile Include="..\..\mlcc\filefunc.cpp" />
     <ClCompile Include="..\..\mlcc\strfunc.cpp" />
+    <ClCompile Include="clang-m.h">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsHeaderUnit</CompileAs>
+    </ClCompile>
     <ClCompile Include="rubbish.cpp" />
     <ClCompile Include="Struct2xxx.cpp" />
     <ClCompile Include="main.cpp" />
