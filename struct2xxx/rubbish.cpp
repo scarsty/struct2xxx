@@ -1,7 +1,8 @@
 #include "nlohmann/json.hpp"
 
-import Struct2xxx;
-import std;
+#include "Struct2xxx.h"
+#include <print>
+
 using namespace Struct2xxx;
 
 void ast_json_111()

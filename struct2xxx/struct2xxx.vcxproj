@@ -125,8 +125,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>../../mlcc</AdditionalIncludeDirectories>
       <BuildStlModules>true</BuildStlModules>
-      <TranslateIncludes>true</TranslateIncludes>
-      <ScanSourceForModuleDependencies>true</ScanSourceForModuleDependencies>
+      <TranslateIncludes>false</TranslateIncludes>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
       <PreprocessToFile>false</PreprocessToFile>
     </ClCompile>
     <Link>
@@ -146,6 +146,9 @@
     <ClCompile Include="rubbish.cpp" />
     <ClCompile Include="Struct2xxx.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Struct2xxx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

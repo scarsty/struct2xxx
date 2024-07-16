@@ -1,10 +1,8 @@
-﻿#include "filefunc.h"
+﻿#include "Struct2xxx.h"
+#include "filefunc.h"
 #include "strfunc.h"
-
-
-import Struct2xxx;
-
-import std;
+#include <algorithm>
+#include <print>
 
 using namespace Struct2xxx;
 
@@ -118,7 +116,7 @@ void rearrange_cpp(const std::string& filename_cpp)
     std::print("End\n");
 }
 
-void makexxx(const std::string& filename_cpp, const std::string& class_name = "", const std::string xxx = "XXX", const std::string& out_filename = "")
+void make_xxx(const std::string& filename_cpp, const std::string& class_name = "", const std::string xxx = "XXX", const std::string& out_filename = "")
 {
     auto filename = filefunc::getFileMainName(filename_cpp);
     std::string filename_h = filename + ".h";
@@ -145,7 +143,7 @@ void makexxx(const std::string& filename_cpp, const std::string& class_name = ""
         std::print("{} : {} (public: {}, const: {})\n", mi.full_name, mi.type, mi.is_public, mi.is_const);
     }
     std::print("\n");
-    std::print("Make codes like this:\n\n", member_infos.size());
+    std::print("Make codes like this:\n\n");
 
     std::string str;
     if (template_str != "") { template_str += "\n"; }
@@ -183,6 +181,55 @@ void makexxx(const std::string& filename_cpp, const std::string& class_name = ""
     }
 }
 
+void make_enum_xxx(const std::string& filename_cpp, const std::string& enum_name = "", const std::string& out_filename = "")
+{
+    auto filename = filefunc::getFileMainName(filename_cpp);
+    std::string filename_h = filename + ".h";
+    std::string h_content = filefunc::readFileToString(filename_h);
+    std::string cpp_content = filefunc::readFileToString(filename_cpp);
+    filefunc::changePath(filefunc::getFilePath(filename_cpp));
+
+    std::print("Processing {}\n", filename_cpp);
+
+    auto m = make_enum_map(filename_cpp, enum_name,
+        { "--std=c++23",
+            "--language=c++",
+            "-I../../local/include1" });
+
+    std::print("Found enum:\n");
+    for (auto& [k, v] : m)
+    {
+        std::print("{} : {}\n", k, v);
+    }
+    std::print("\n");
+    std::print("Make codes like this:\n\n");
+
+    std::string str;
+    str += std::format("std::string {}2string({} value)\n{{\n", enum_name, enum_name);
+    str += "    switch (value)\n    {\n";
+    for (auto& [k, v] : m)
+    {
+        str += std::format("    case {}:\n        return \"{}\";\n", v, v);
+    }
+    str += "    default:\n        return \"\";\n    }\n}\n\n";
+    std::print("{}\n", str);
+
+    //若没有变动，则不保存
+    if (out_filename != "")
+    {
+        auto str0 = filefunc::readFileToString(out_filename);
+        if (str0 != str)
+        {
+            filefunc::writeStringToFile(str, out_filename);
+            std::print("Change have saved in {}\n", out_filename);
+        }
+        else
+        {
+            std::print("No change\n");
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -190,6 +237,6 @@ int main(int argc, char* argv[])
         std::print("Usage: {} <filename>\n", argv[0]);
         return 1;
     }
-    makexxx(argv[1], "_Rect");
+    make_enum_xxx(argv[1], "LayerConnectionType");
     return 0;
 }

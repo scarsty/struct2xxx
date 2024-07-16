@@ -1,49 +1,12 @@
-﻿#include "filefunc.h"
-#include "strfunc.h"
-
-#include <cstdint>
-
+﻿#include "Struct2xxx.h"
 #include "clang-m.h"
+#include "filefunc.h"
+#include "strfunc.h"
+#include <cstdint>
+#include <print>
 
-export module Struct2xxx;
-
-import std;
-
-export namespace Struct2xxx
+namespace Struct2xxx
 {
-
-struct FuncInfo
-{
-    std::string name;
-    int64_t index = 0;
-};
-
-struct FuncBody
-{
-    std::string name;
-    std::string body;
-    int line0, line1;
-    int64_t index = 0;
-};
-
-struct ClassInfo
-{
-    std::string name;
-    size_t pos = 0;
-    int64_t id;
-    int is_class = 0;
-};
-
-struct MemberInfo
-{
-    std::string name;
-    std::string full_name;
-    std::string type;
-    int64_t id;
-    int is_member = 0;
-    int is_public = 1;
-    int is_const = 0;
-};
 
 std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> find_functions(const std::string& filename_cpp)
 {
@@ -593,7 +556,7 @@ std::tuple<std::vector<FuncInfo>, std::vector<FuncBody>> find_functions3(const s
     return { func_infos, func_bodies };
 }
 
-std::tuple<std::string, std::string, std::vector<MemberInfo>> find_members(const std::string& filename_cpp, const std::string& class_name = "", const std::vector<std::string>& args = {})
+std::tuple<std::string, std::string, std::vector<MemberInfo>> find_members(const std::string& filename_cpp, const std::string& class_name, const std::vector<std::string>& args)
 {
     auto str = filefunc::readFileToString(filename_cpp);
     auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args, filename_cpp);
@@ -693,5 +656,63 @@ std::tuple<std::string, std::string, std::vector<MemberInfo>> find_members(const
         check_decl(d);
     }
     return { c_name, template_str, member_infos };    //c_name1可能包含模板参数
+}
+
+std::map<int, std::string> make_enum_map(const std::string& filename_cpp, const std::string& enum_name, const std::vector<std::string>& args)
+{
+    auto str = filefunc::readFileToString(filename_cpp);
+    auto ast = clang::tooling::buildASTFromCodeWithArgs(str, args, filename_cpp);
+    auto DC = ast->getASTContext().getTranslationUnitDecl();
+
+    int depth = 0;
+
+    std::vector<MemberInfo> member_infos;
+    std::map<int, std::string> enum_infos;
+    std::string e_name = enum_name, template_str;
+    std::function<void(clang::Decl*)> check_decl = [&](clang::Decl* decl)
+    {
+        depth++;
+        std::string name1;
+        bool is_member = false;
+        if (decl->getKind() == clang::Decl::Kind::Namespace)
+        {
+            auto d1 = static_cast<clang::NamespaceDecl*>(decl);
+            name1 = d1->getQualifiedNameAsString();
+            for (auto& d : d1->decls())
+            {
+                check_decl(d);
+            }
+        }
+        else if (decl->getKind() == clang::Decl::Kind::CXXRecord)
+        {
+            auto d1 = static_cast<clang::CXXRecordDecl*>(decl);
+            name1 = d1->getQualifiedNameAsString();
+            for (auto& d : d1->decls())
+            {
+                check_decl(d);
+            }
+        }
+        else if (decl->getKind() == clang::Decl::Kind::Enum)
+        {
+            auto d1 = static_cast<clang::EnumDecl*>(decl);
+            name1 = d1->getQualifiedNameAsString();
+            if (name1 == enum_name)
+            {
+                for (auto e : d1->enumerators())
+                {
+                    auto name2 = e->getQualifiedNameAsString();
+                    auto val = e->getInitVal().getExtValue();
+                    //std::print("{} : {}\n", name2, val);
+                    enum_infos[val] = name2;
+                }
+            }
+        }
+        depth--;
+    };
+    for (auto& d : DC->decls())
+    {
+        check_decl(d);
+    }
+    return enum_infos;
 }
 }    //namespace Struct2xxx
